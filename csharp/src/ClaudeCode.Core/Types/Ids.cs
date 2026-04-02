@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace ClaudeCode.Core.Types;
 
 /// <summary>
@@ -13,14 +15,14 @@ public readonly record struct SessionId(string Value)
 /// <summary>
 /// Strongly-typed agent ID to prevent mixing with session IDs.
 /// </summary>
-public readonly record struct AgentId(string Value)
+public readonly partial record struct AgentId(string Value)
 {
-    private static readonly System.Text.RegularExpressions.Regex Pattern =
-        new(@"^a(?:.+-)?[0-9a-f]{16}$", System.Text.RegularExpressions.RegexOptions.Compiled);
+    [GeneratedRegex(@"^a(?:.+-)?[0-9a-f]{16}$")]
+    private static partial Regex GetPattern();
 
     public override string ToString() => Value;
     public static implicit operator string(AgentId id) => id.Value;
 
     public static AgentId? TryParse(string s)
-        => Pattern.IsMatch(s) ? new AgentId(s) : null;
+        => GetPattern().IsMatch(s) ? new AgentId(s) : null;
 }

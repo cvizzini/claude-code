@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ClaudeCode.Tools")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2ed19f693f2a1ce05125baaa28640de1188e4337")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2202259e0e3784e8b737bc95b04dc667ccd21343")]
 [assembly: System.Reflection.AssemblyProductAttribute("ClaudeCode.Tools")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ClaudeCode.Tools")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
