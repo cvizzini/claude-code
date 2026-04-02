@@ -4,8 +4,11 @@ namespace ClaudeCode.Core.Config;
 
 public class AppConfig
 {
+    // Defined here because ClaudeCode.Core cannot depend on ClaudeCode.Constants
+    public const string DefaultModel = "claude-opus-4-5";
+
     public string? ApiKey { get; set; }
-    public string Model { get; set; } = "claude-opus-4-5";
+    public string Model { get; set; } = DefaultModel;
     public string? OAuthToken { get; set; }
     public bool BypassPermissions { get; set; }
     public PermissionMode DefaultPermissionMode { get; set; } = PermissionMode.Default;
