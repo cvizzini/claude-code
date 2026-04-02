@@ -11,6 +11,7 @@ public record TodoItem(string Id, string Content, string Status, string Priority
 public class TodoWriteTool : ToolBase
 {
     private readonly ILogger<TodoWriteTool> _logger;
+    private static readonly object _lock = new();
     private static List<TodoItem> _todos = new();
 
     public TodoWriteTool(ILogger<TodoWriteTool> logger) { _logger = logger; }
@@ -35,7 +36,7 @@ public class TodoWriteTool : ToolBase
             if (todos.Count > ToolLimits.TodoMaxItems)
                 return Task.FromResult(new ToolResult(false, Error: $"Too many todos: {todos.Count} (max {ToolLimits.TodoMaxItems})"));
 
-            _todos = todos;
+            lock (_lock) { _todos = todos; }
             return Task.FromResult(new ToolResult(true, Output: $"Todos updated: {todos.Count} item(s)"));
         }
         catch (Exception ex)
@@ -45,5 +46,5 @@ public class TodoWriteTool : ToolBase
         }
     }
 
-    public static IReadOnlyList<TodoItem> GetTodos() => _todos.AsReadOnly();
+    public static IReadOnlyList<TodoItem> GetTodos() { lock (_lock) { return _todos.AsReadOnly(); } }
 }
