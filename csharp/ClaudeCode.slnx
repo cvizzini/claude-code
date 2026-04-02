@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ClaudeCode.Cli/ClaudeCode.Cli.csproj" />
+    <Project Path="src/ClaudeCode.Commands/ClaudeCode.Commands.csproj" />
+    <Project Path="src/ClaudeCode.Constants/ClaudeCode.Constants.csproj" />
+    <Project Path="src/ClaudeCode.Core/ClaudeCode.Core.csproj" />
+    <Project Path="src/ClaudeCode.Services/ClaudeCode.Services.csproj" />
+    <Project Path="src/ClaudeCode.Tools/ClaudeCode.Tools.csproj" />
+  </Folder>
+</Solution>

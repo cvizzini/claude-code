@@ -1,0 +1,23 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "ClaudeCode.Constants/1.0.0": {
+        "runtime": {
+          "ClaudeCode.Constants.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "ClaudeCode.Constants/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}
