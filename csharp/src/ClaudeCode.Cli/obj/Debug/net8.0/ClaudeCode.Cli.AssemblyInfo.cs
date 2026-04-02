@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ClaudeCode.Cli")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2202259e0e3784e8b737bc95b04dc667ccd21343")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7db6becd12e0f98abc2f6ca79e04a33d24e26e04")]
 [assembly: System.Reflection.AssemblyProductAttribute("ClaudeCode.Cli")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ClaudeCode.Cli")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
