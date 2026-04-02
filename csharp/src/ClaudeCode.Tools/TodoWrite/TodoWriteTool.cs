@@ -11,8 +11,8 @@ public record TodoItem(string Id, string Content, string Status, string Priority
 public class TodoWriteTool : ToolBase
 {
     private readonly ILogger<TodoWriteTool> _logger;
-    private static readonly object _lock = new();
-    private static List<TodoItem> _todos = new();
+    private readonly object _lock = new();
+    private List<TodoItem> _todos = new();
 
     public TodoWriteTool(ILogger<TodoWriteTool> logger) { _logger = logger; }
 
@@ -46,5 +46,5 @@ public class TodoWriteTool : ToolBase
         }
     }
 
-    public static IReadOnlyList<TodoItem> GetTodos() { lock (_lock) { return _todos.AsReadOnly(); } }
+    public IReadOnlyList<TodoItem> GetTodos() { lock (_lock) { return _todos.AsReadOnly(); } }
 }
