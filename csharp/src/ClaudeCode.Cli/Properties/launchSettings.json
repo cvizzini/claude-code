@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ClaudeCode.Cli": {
+      "commandName": "Project",
+      "commandLineArgs": "--provider copilot --model claude-sonnet-4.6"
+    }
+  }
+}

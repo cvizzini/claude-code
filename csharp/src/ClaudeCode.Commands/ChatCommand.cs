@@ -1,8 +1,12 @@
+using ClaudeCode.Constants;
+using ClaudeCode.Core.Tools;
 using ClaudeCode.Core.Types;
 using ClaudeCode.Services.Config;
 using ClaudeCode.Services.QueryEngine;
+using ClaudeCode.Tools;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
+using System.Text;
 
 namespace ClaudeCode.Commands;
 
@@ -10,12 +14,14 @@ public class ChatCommand
 {
     private readonly IQueryEngine _queryEngine;
     private readonly IConfigService _configService;
+    private readonly IToolRegistry _toolRegistry;
     private readonly ILogger<ChatCommand> _logger;
 
-    public ChatCommand(IQueryEngine queryEngine, IConfigService configService, ILogger<ChatCommand> logger)
+    public ChatCommand(IQueryEngine queryEngine, IConfigService configService, IToolRegistry toolRegistry, ILogger<ChatCommand> logger)
     {
         _queryEngine = queryEngine;
         _configService = configService;
+        _toolRegistry = toolRegistry;
         _logger = logger;
     }
 
@@ -23,6 +29,7 @@ public class ChatCommand
     {
         var config = _configService.LoadConfig();
         var history = new List<ConversationMessage>();
+        var tools = GetToolsForProvider(config.Provider);
 
         AnsiConsole.MarkupLine("[bold green]Claude Code[/] - Type your message or 'exit' to quit");
         AnsiConsole.WriteLine();
@@ -44,8 +51,11 @@ public class ChatCommand
                 input,
                 config.Model,
                 config.SystemPrompt,
-                History: history
+                History: history,
+                Tools: tools
             );
+
+            var assistantText = new StringBuilder();
 
             try
             {
@@ -55,6 +65,13 @@ public class ChatCommand
                     {
                         case TextEvent text:
                             Console.Write(text.Text);
+                            assistantText.Append(text.Text);
+                            break;
+                        case ToolUseEvent toolUse:
+                            WriteToolUse(toolUse);
+                            break;
+                        case ToolResultEvent toolResult:
+                            WriteToolResult(toolResult);
                             break;
                         case ErrorEvent error:
                             AnsiConsole.MarkupLine($"[bold red]Error:[/] {Markup.Escape(error.Error)}");
@@ -70,14 +87,20 @@ public class ChatCommand
 
             Console.WriteLine();
             history.Add(new ConversationMessage(MessageRole.User, input, DateTime.UtcNow));
+
+            if (assistantText.Length > 0)
+            {
+                history.Add(new ConversationMessage(MessageRole.Assistant, assistantText.ToString(), DateTime.UtcNow));
+            }
         }
     }
 
     public async Task RunNonInteractiveAsync(string prompt, CancellationToken cancellationToken = default)
     {
         var config = _configService.LoadConfig();
+        var tools = GetToolsForProvider(config.Provider);
 
-        var request = new QueryRequest(prompt, config.Model, config.SystemPrompt);
+        var request = new QueryRequest(prompt, config.Model, config.SystemPrompt, Tools: tools);
 
         try
         {
@@ -87,6 +110,12 @@ public class ChatCommand
                 {
                     case TextEvent text:
                         Console.Write(text.Text);
+                        break;
+                    case ToolUseEvent toolUse:
+                        WriteToolUse(toolUse);
+                        break;
+                    case ToolResultEvent toolResult:
+                        WriteToolResult(toolResult);
                         break;
                     case ErrorEvent error:
                         Console.Error.WriteLine($"Error: {error.Error}");
@@ -100,5 +129,77 @@ public class ChatCommand
             _logger.LogError(ex, "Query failed");
             Console.Error.WriteLine($"Error: {ex.Message}");
         }
+    }
+
+    private List<ITool>? GetToolsForProvider(string provider)
+    {
+        if (!string.Equals(provider, ProductConstants.CopilotProvider, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return new ITool?[]
+        {
+            _toolRegistry.GetTool(ToolNames.Bash),
+            _toolRegistry.GetTool(ToolNames.ListDirectory),
+            _toolRegistry.GetTool(ToolNames.Glob),
+            _toolRegistry.GetTool(ToolNames.Grep),
+            _toolRegistry.GetTool(ToolNames.FileRead),
+            _toolRegistry.GetTool(ToolNames.FileWrite),
+            _toolRegistry.GetTool(ToolNames.FileEdit)
+        }
+        .OfType<ITool>()
+        .ToList();
+    }
+
+    private static void WriteToolUse(ToolUseEvent toolUse)
+    {
+       AnsiConsole.MarkupLine($"\n[dim]> {Markup.Escape(toolUse.ToolName)} {Markup.Escape(DescribeToolInput(toolUse))}[/]");
+    }
+
+    private static void WriteToolResult(ToolResultEvent toolResult)
+    {
+        if (toolResult.Result.Success)
+        {
+            var summary = string.IsNullOrWhiteSpace(toolResult.Result.Output)
+                ? "completed"
+                : Summarize(toolResult.Result.Output);
+          AnsiConsole.MarkupLine($"[dim]done: {Markup.Escape(summary)}[/]");
+            return;
+        }
+
+        var error = toolResult.Result.Error ?? "Tool failed.";
+        AnsiConsole.MarkupLine($"[dim red]error: {Markup.Escape(error)}[/]");
+    }
+
+    private static string DescribeToolInput(ToolUseEvent toolUse)
+    {
+        if (toolUse.Input.TryGetValue("file_path", out var filePath) && filePath != null)
+        {
+            return filePath.ToString() ?? string.Empty;
+        }
+
+        if (toolUse.Input.TryGetValue("path", out var path) && path != null)
+        {
+            return path.ToString() ?? string.Empty;
+        }
+
+        if (toolUse.Input.TryGetValue("command", out var command) && command != null)
+        {
+            return command.ToString() ?? string.Empty;
+        }
+
+        return string.Empty;
+    }
+
+    private static string Summarize(string text)
+    {
+        var normalized = text.Replace("\r", string.Empty).Split('\n', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return "completed";
+        }
+
+        return normalized.Length <= 120 ? normalized : normalized[..117] + "...";
     }
 }

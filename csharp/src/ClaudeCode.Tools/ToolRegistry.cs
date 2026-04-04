@@ -5,6 +5,7 @@ using ClaudeCode.Tools.FileRead;
 using ClaudeCode.Tools.FileWrite;
 using ClaudeCode.Tools.Glob;
 using ClaudeCode.Tools.Grep;
+using ClaudeCode.Tools.ListDirectory;
 using ClaudeCode.Tools.TodoWrite;
 using ClaudeCode.Tools.WebFetch;
 using Microsoft.Extensions.DependencyInjection;
@@ -35,6 +36,7 @@ public static class ToolRegistryExtensions
     {
         services.AddSingleton<IToolRegistry, ToolRegistry>();
         services.AddSingleton<BashTool>();
+      services.AddSingleton<ListDirectoryTool>();
         services.AddSingleton<FileReadTool>();
         services.AddSingleton<FileWriteTool>();
         services.AddSingleton<FileEditTool>();
@@ -49,6 +51,7 @@ public static class ToolRegistryExtensions
     {
         var registry = serviceProvider.GetRequiredService<IToolRegistry>();
         registry.RegisterTool(serviceProvider.GetRequiredService<BashTool>());
+      registry.RegisterTool(serviceProvider.GetRequiredService<ListDirectoryTool>());
         registry.RegisterTool(serviceProvider.GetRequiredService<FileReadTool>());
         registry.RegisterTool(serviceProvider.GetRequiredService<FileWriteTool>());
         registry.RegisterTool(serviceProvider.GetRequiredService<FileEditTool>());

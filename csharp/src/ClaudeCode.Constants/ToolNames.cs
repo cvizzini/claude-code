@@ -3,6 +3,7 @@ namespace ClaudeCode.Constants;
 public static class ToolNames
 {
     public const string Bash = "Bash";
+    public const string ListDirectory = "LS";
     public const string FileRead = "Read";
     public const string FileEdit = "Edit";
     public const string FileWrite = "Write";

@@ -27,6 +27,7 @@ public class ConfigService : IConfigService
 
         config.ApiKey = Environment.GetEnvironmentVariable(ProductConstants.ApiKeyEnvVar);
         config.Model = Environment.GetEnvironmentVariable("ANTHROPIC_MODEL") ?? config.Model;
+        config.Provider = Environment.GetEnvironmentVariable(ProductConstants.ProviderEnvVar) ?? config.Provider;
 
         var configPath = GetConfigFilePath();
         if (File.Exists(configPath))
@@ -42,6 +43,7 @@ public class ConfigService : IConfigService
                 {
                     config.ApiKey ??= saved.ApiKey;
                     if (!string.IsNullOrEmpty(saved.Model)) config.Model = saved.Model;
+                    if (!string.IsNullOrEmpty(saved.Provider)) config.Provider = saved.Provider;
                     config.OAuthToken ??= saved.OAuthToken;
                     config.MaxTokens = saved.MaxTokens;
                     config.SystemPrompt = saved.SystemPrompt;

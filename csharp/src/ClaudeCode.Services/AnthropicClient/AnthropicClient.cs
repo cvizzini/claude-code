@@ -51,6 +51,9 @@ public class AnthropicClient : IAnthropicClient
         using var httpRequest = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}/v1/messages") { Content = content };
 
         using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        
+        Console.WriteLine(httpRequest);
+        Console.WriteLine(response);
         response.EnsureSuccessStatusCode();
 
         using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);

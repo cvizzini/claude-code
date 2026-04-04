@@ -1,4 +1,5 @@
 <Solution>
+  <Folder Name="/Solution Items/" />
   <Folder Name="/src/">
     <Project Path="src/ClaudeCode.Cli/ClaudeCode.Cli.csproj" />
     <Project Path="src/ClaudeCode.Commands/ClaudeCode.Commands.csproj" />
