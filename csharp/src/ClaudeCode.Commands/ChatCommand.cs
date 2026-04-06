@@ -55,8 +55,6 @@ public class ChatCommand
                 Tools: tools
             );
 
-            var assistantText = new StringBuilder();
-
             try
             {
                 await foreach (var evt in _queryEngine.QueryAsync(request, cancellationToken))
@@ -65,7 +63,9 @@ public class ChatCommand
                     {
                         case TextEvent text:
                             Console.Write(text.Text);
-                            assistantText.Append(text.Text);
+                            break;
+                        case HistoryEvent historyEvent:
+                            history.Add(historyEvent.Message);
                             break;
                         case ToolUseEvent toolUse:
                             WriteToolUse(toolUse);
@@ -86,12 +86,6 @@ public class ChatCommand
             }
 
             Console.WriteLine();
-            history.Add(new ConversationMessage(MessageRole.User, input, DateTime.UtcNow));
-
-            if (assistantText.Length > 0)
-            {
-                history.Add(new ConversationMessage(MessageRole.Assistant, assistantText.ToString(), DateTime.UtcNow));
-            }
         }
     }
 
@@ -110,6 +104,8 @@ public class ChatCommand
                 {
                     case TextEvent text:
                         Console.Write(text.Text);
+                        break;
+                    case HistoryEvent:
                         break;
                     case ToolUseEvent toolUse:
                         WriteToolUse(toolUse);
@@ -140,10 +136,13 @@ public class ChatCommand
 
         return new ITool?[]
         {
+            _toolRegistry.GetTool(ToolNames.ApplyPatch),
             _toolRegistry.GetTool(ToolNames.Bash),
+            _toolRegistry.GetTool(ToolNames.TodoWrite),
             _toolRegistry.GetTool(ToolNames.ListDirectory),
             _toolRegistry.GetTool(ToolNames.Glob),
             _toolRegistry.GetTool(ToolNames.Grep),
+            _toolRegistry.GetTool(ToolNames.WebFetch),
             _toolRegistry.GetTool(ToolNames.FileRead),
             _toolRegistry.GetTool(ToolNames.FileWrite),
             _toolRegistry.GetTool(ToolNames.FileEdit)
@@ -154,7 +153,7 @@ public class ChatCommand
 
     private static void WriteToolUse(ToolUseEvent toolUse)
     {
-       AnsiConsole.MarkupLine($"\n[dim]> {Markup.Escape(toolUse.ToolName)} {Markup.Escape(DescribeToolInput(toolUse))}[/]");
+        AnsiConsole.MarkupLine($"\n[dim]> {Markup.Escape(toolUse.ToolName)} {Markup.Escape(DescribeToolInput(toolUse))}[/]");
     }
 
     private static void WriteToolResult(ToolResultEvent toolResult)
@@ -164,7 +163,7 @@ public class ChatCommand
             var summary = string.IsNullOrWhiteSpace(toolResult.Result.Output)
                 ? "completed"
                 : Summarize(toolResult.Result.Output);
-          AnsiConsole.MarkupLine($"[dim]done: {Markup.Escape(summary)}[/]");
+            AnsiConsole.MarkupLine($"[dim]done: {Markup.Escape(summary)}[/]");
             return;
         }
 
@@ -187,6 +186,11 @@ public class ChatCommand
         if (toolUse.Input.TryGetValue("command", out var command) && command != null)
         {
             return command.ToString() ?? string.Empty;
+        }
+
+        if (toolUse.Input.TryGetValue("changes", out var changes) && changes != null)
+        {
+            return "patch changes";
         }
 
         return string.Empty;

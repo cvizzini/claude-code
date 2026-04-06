@@ -11,7 +11,7 @@ using System.Text.Json.Serialization;
 
 namespace ClaudeCode.Services.CopilotClient;
 
-public class CopilotClient : IAnthropicClient
+public class CopilotClient : IAgentClient
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<CopilotClient> _logger;
@@ -284,7 +284,7 @@ public static class CopilotClientExtensions
 {
     public static IServiceCollection AddCopilotClient(this IServiceCollection services, string accessToken)
     {
-        services.AddHttpClient<IAnthropicClient, CopilotClient>(client =>
+        services.AddHttpClient<IAgentClient, CopilotClient>(client =>
         {
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
             client.DefaultRequestHeaders.Add("Accept", "application/json");

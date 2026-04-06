@@ -27,7 +27,12 @@ public class TodoWriteTool : ToolBase
             if (!input.TryGetValue("todos", out var todosObj))
                 return Task.FromResult(new ToolResult(false, Error: "No todos provided"));
 
-            var json = todosObj?.ToString() ?? "[]";
+            var json = todosObj switch
+            {
+                null => "[]",
+                string text => text,
+                _ => JsonSerializer.Serialize(todosObj)
+            };
             var todos = JsonSerializer.Deserialize<List<TodoItem>>(json, new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true

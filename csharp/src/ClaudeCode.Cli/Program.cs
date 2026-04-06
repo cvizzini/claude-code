@@ -2,7 +2,6 @@ using ClaudeCode.Commands;
 using ClaudeCode.Constants;
 using ClaudeCode.Core.Config;
 using ClaudeCode.Core.Services;
-using ClaudeCode.Services.AnthropicClient;
 using ClaudeCode.Services.Config;
 using ClaudeCode.Services.CopilotClient;
 using ClaudeCode.Services.QueryEngine;
@@ -13,8 +12,8 @@ using Spectre.Console;
 using System.CommandLine;
 using System.CommandLine.Invocation;
 
-var apiKeyOption = new Option<string?>("--api-key", "Provider API key (overrides provider env var)");
-var providerOption = new Option<string?>("--provider", "AI provider: anthropic or copilot");
+var apiKeyOption = new Option<string?>("--api-key", "GitHub token override for Copilot sign-in");
+var providerOption = new Option<string?>("--provider", () => ProductConstants.CopilotProvider, "AI provider (copilot only)");
 var modelOption = new Option<string?>("--model", "Model to use");
 var verboseOption = new Option<bool>(new[] { "--verbose", "-v" }, "Enable verbose output");
 var debugOption = new Option<bool>("--debug", "Enable debug output");
@@ -22,7 +21,7 @@ var printOption = new Option<bool>(new[] { "-p", "--print" }, "Non-interactive m
 var systemPromptOption = new Option<string?>("--system-prompt", "System prompt to use");
 var promptArgument = new Argument<string?>("prompt", () => null, "Initial prompt (optional)");
 
-var rootCommand = new RootCommand("Claude Code - AI coding assistant powered by Claude");
+var rootCommand = new RootCommand("Claude Code - GitHub Copilot coding assistant");
 rootCommand.AddGlobalOption(apiKeyOption);
 rootCommand.AddGlobalOption(providerOption);
 rootCommand.AddGlobalOption(modelOption);
@@ -59,17 +58,14 @@ rootCommand.SetHandler(async (InvocationContext ctx) =>
     }
 });
 
-// Doctor command
 var doctorCommand = new Command("doctor", "Check Claude Code configuration and connectivity");
 doctorCommand.SetHandler(async (InvocationContext ctx) =>
 {
-    var provider = ctx.ParseResult.GetValueForOption(providerOption);
     var configService = new ConfigService(null);
-    await RunDoctorAsync(configService, provider);
+    await RunDoctorAsync(configService);
 });
 rootCommand.AddCommand(doctorCommand);
 
-// Config command
 var configCommand = new Command("config", "Manage Claude Code configuration");
 var configListCmd = new Command("list", "List current configuration values");
 configListCmd.SetHandler((InvocationContext ctx) =>
@@ -81,7 +77,7 @@ configListCmd.SetHandler((InvocationContext ctx) =>
     table.AddRow("Provider", config.Provider);
     table.AddRow("Model", config.Model);
     table.AddRow("Max Tokens", config.MaxTokens.ToString());
-    table.AddRow("API Key", config.ApiKey != null ? "***" + (config.ApiKey.Length > 4 ? config.ApiKey[^4..] : "****") : "(not set)");
+    table.AddRow("GitHub Token", config.ApiKey != null ? "***" + (config.ApiKey.Length > 4 ? config.ApiKey[^4..] : "****") : "(not set)");
     table.AddRow("OAuth Token", config.OAuthToken != null ? "(set)" : "(not set)");
     table.AddRow("Verbose", config.Verbose.ToString());
     table.AddRow("Debug", config.Debug.ToString());
@@ -97,23 +93,12 @@ static async Task<IServiceProvider> BuildServicesAsync(string? apiKey, string? p
     var bootstrapConfig = new ConfigService(null).LoadConfig();
     var services = CreateBaseServices(verbose, debug);
 
-    var resolvedProvider = ResolveProvider(provider, bootstrapConfig.Provider);
-    var resolvedModel = ResolveModel(model, resolvedProvider, bootstrapConfig);
+    var resolvedProvider = ResolveProvider(provider);
+    var resolvedModel = ResolveModel(model, bootstrapConfig);
 
-    if (resolvedProvider == ProductConstants.CopilotProvider)
-    {
-        using var bootstrapProvider = services.BuildServiceProvider();
-        var accessToken = await ResolveCopilotAccessTokenAsync(apiKey, bootstrapConfig, bootstrapProvider, cancellationToken);
-        services.AddCopilotClient(accessToken);
-    }
-    else
-    {
-        var resolvedApiKey = ResolveAnthropicApiKey(apiKey, bootstrapConfig.ApiKey);
-        if (!string.IsNullOrEmpty(resolvedApiKey))
-            services.AddAnthropicClient(resolvedApiKey);
-        else
-            services.AddHttpClient<IAnthropicClient, ClaudeCode.Services.AnthropicClient.AnthropicClient>();
-    }
+    using var bootstrapProvider = services.BuildServiceProvider();
+    var accessToken = await ResolveCopilotAccessTokenAsync(apiKey, bootstrapConfig, bootstrapProvider, cancellationToken);
+    services.AddCopilotClient(accessToken);
 
     services.AddSingleton<IQueryEngine, QueryEngine>();
     services.AddClaudeTools();
@@ -141,32 +126,29 @@ static ServiceCollection CreateBaseServices(bool verbose, bool debug)
     return services;
 }
 
-static string ResolveProvider(string? cliProvider, string? configuredProvider)
+static string ResolveProvider(string? cliProvider)
 {
-    var envProvider = Environment.GetEnvironmentVariable(ProductConstants.ProviderEnvVar);
-    var value = (cliProvider ?? envProvider ?? configuredProvider ?? ProductConstants.AnthropicProvider).Trim().ToLowerInvariant();
+    if (!string.IsNullOrWhiteSpace(cliProvider) && !string.Equals(cliProvider, ProductConstants.CopilotProvider, StringComparison.OrdinalIgnoreCase))
+    {
+        throw new InvalidOperationException("Only the copilot provider is supported.");
+    }
 
-    return value == ProductConstants.CopilotProvider
-        ? ProductConstants.CopilotProvider
-        : ProductConstants.AnthropicProvider;
+    return ProductConstants.CopilotProvider;
 }
 
-static string ResolveModel(string? cliModel, string provider, AppConfig configuredConfig)
+static string ResolveModel(string? cliModel, AppConfig configuredConfig)
 {
     if (!string.IsNullOrWhiteSpace(cliModel))
     {
         return cliModel;
     }
 
-    var providerMatchesConfigured = string.Equals(provider, configuredConfig.Provider, StringComparison.OrdinalIgnoreCase);
-    if (providerMatchesConfigured && !string.IsNullOrWhiteSpace(configuredConfig.Model))
+    if (!string.IsNullOrWhiteSpace(configuredConfig.Model))
     {
         return configuredConfig.Model;
     }
 
-    return provider == ProductConstants.CopilotProvider
-        ? ProductConstants.DefaultModel
-        : AppConfig.DefaultModel;
+    return ProductConstants.DefaultModel;
 }
 
 static void ApplyRuntimeConfig(IServiceProvider serviceProvider, string provider, string model, bool verbose, bool debug)
@@ -179,69 +161,54 @@ static void ApplyRuntimeConfig(IServiceProvider serviceProvider, string provider
     config.Debug = debug;
 }
 
-static string ResolveAnthropicApiKey(string? cliApiKey, string? configuredApiKey)
-{
-    if (!string.IsNullOrWhiteSpace(cliApiKey)) return cliApiKey;
-
-    return Environment.GetEnvironmentVariable(ProductConstants.ApiKeyEnvVar)
-        ?? configuredApiKey
-        ?? string.Empty;
-}
-
 static async Task<string> ResolveCopilotAccessTokenAsync(string? cliToken, AppConfig config, IServiceProvider services, CancellationToken cancellationToken)
 {
     var configuredToken = !string.IsNullOrWhiteSpace(cliToken)
         ? cliToken
         : Environment.GetEnvironmentVariable(ProductConstants.CopilotApiKeyEnvVar)
-            ?? Environment.GetEnvironmentVariable("COPILOT_API_KEY")
-            ?? config.OAuthToken;
+            ?? Environment.GetEnvironmentVariable(ProductConstants.CopilotFallbackTokenEnvVar)
+            ?? config.OAuthToken
+            ?? config.ApiKey;
 
     var authService = services.GetRequiredService<CopilotAuthService>();
     var authResult = await authService.CreateSessionAsync(configuredToken, cancellationToken);
 
-    if (authResult.IsInteractiveSignIn)
-    {
-        var configService = services.GetRequiredService<IConfigService>();
-        var savedConfig = configService.LoadConfig();
-        savedConfig.OAuthToken = authResult.GitHubToken;
-        configService.SaveConfig(savedConfig);
-    }
+    var configService = services.GetRequiredService<IConfigService>();
+    var savedConfig = configService.LoadConfig();
+    savedConfig.Provider = ProductConstants.CopilotProvider;
+    savedConfig.OAuthToken = authResult.GitHubToken;
+    savedConfig.ApiKey = string.IsNullOrWhiteSpace(configuredToken) ? savedConfig.ApiKey : configuredToken;
+    configService.SaveConfig(savedConfig);
 
     return authResult.CopilotToken;
 }
 
-static async Task RunDoctorAsync(IConfigService configService, string? providerOverride)
+static async Task RunDoctorAsync(IConfigService configService)
 {
     AnsiConsole.MarkupLine("[bold]Claude Code Doctor[/]");
     AnsiConsole.WriteLine();
 
     var config = configService.LoadConfig();
-    var provider = ResolveProvider(providerOverride, config.Provider);
-
-    var anthropicApiKey = Environment.GetEnvironmentVariable(ProductConstants.ApiKeyEnvVar);
     var copilotToken = Environment.GetEnvironmentVariable(ProductConstants.CopilotApiKeyEnvVar)
-                       ?? Environment.GetEnvironmentVariable("COPILOT_API_KEY")
-                       ?? config.OAuthToken;
+                       ?? Environment.GetEnvironmentVariable(ProductConstants.CopilotFallbackTokenEnvVar)
+                       ?? config.OAuthToken
+                       ?? config.ApiKey;
     var configPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
         ProductConstants.ConfigDir,
         ProductConstants.GlobalConfigFile);
 
-    var copilotCredentialSet = !string.IsNullOrEmpty(copilotToken);
-    var copilotDetail = copilotCredentialSet
+    var credentialSet = !string.IsNullOrEmpty(copilotToken);
+    var credentialDetail = credentialSet
         ? LooksLikePersonalAccessToken(copilotToken!)
             ? "PAT detected; Copilot requires GitHub OAuth sign-in"
             : "GitHub credential available"
         : $"Run with --provider {ProductConstants.CopilotProvider} to sign in";
 
-    var providerKeySet = provider == ProductConstants.CopilotProvider
-        ? copilotCredentialSet && !LooksLikePersonalAccessToken(copilotToken!)
-        : !string.IsNullOrEmpty(anthropicApiKey);
-
     var checks = new (string Name, bool Passed, string Detail)[]
     {
-        ("Provider", true, provider),
-        ($"Credential ({provider})", providerKeySet, provider == ProductConstants.CopilotProvider ? copilotDetail : $"Set {ProductConstants.ApiKeyEnvVar}"),
+        ("Provider", true, ProductConstants.CopilotProvider),
+        ("Credential", credentialSet && !LooksLikePersonalAccessToken(copilotToken ?? string.Empty), credentialDetail),
         ("Config file", File.Exists(configPath), configPath),
         (".NET Runtime", true, System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription),
     };
@@ -252,6 +219,7 @@ static async Task RunDoctorAsync(IConfigService configService, string? providerO
         AnsiConsole.MarkupLine($"  {icon} {name}: [dim]{Markup.Escape(detail)}[/]");
     }
 
+    await Task.CompletedTask;
     AnsiConsole.WriteLine();
 }
 

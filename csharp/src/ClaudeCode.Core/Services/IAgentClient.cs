@@ -2,7 +2,7 @@ using ClaudeCode.Core.Types;
 
 namespace ClaudeCode.Core.Services;
 
-public interface IAnthropicClient
+public interface IAgentClient
 {
     Task<Message> CreateMessageAsync(CreateMessageRequest request, CancellationToken cancellationToken = default);
     IAsyncEnumerable<MessageStreamEvent> StreamMessageAsync(CreateMessageRequest request, CancellationToken cancellationToken = default);

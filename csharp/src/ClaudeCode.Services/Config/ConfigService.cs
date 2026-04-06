@@ -9,11 +9,12 @@ public interface IConfigService
 {
     AppConfig LoadConfig();
     void SaveConfig(AppConfig config);
-    string GetApiKey();
 }
 
 public class ConfigService : IConfigService
 {
+    private static readonly string[] UnsupportedLegacyModelPrefixes = ["claude-"];
+
     private readonly ILogger<ConfigService>? _logger;
     private AppConfig? _config;
 
@@ -23,11 +24,15 @@ public class ConfigService : IConfigService
     {
         if (_config != null) return _config;
 
-        var config = new AppConfig();
-
-        config.ApiKey = Environment.GetEnvironmentVariable(ProductConstants.ApiKeyEnvVar);
-        config.Model = Environment.GetEnvironmentVariable("ANTHROPIC_MODEL") ?? config.Model;
-        config.Provider = Environment.GetEnvironmentVariable(ProductConstants.ProviderEnvVar) ?? config.Provider;
+        var config = new AppConfig
+        {
+            ApiKey = Environment.GetEnvironmentVariable(ProductConstants.CopilotApiKeyEnvVar)
+                     ?? Environment.GetEnvironmentVariable(ProductConstants.CopilotFallbackTokenEnvVar),
+            Model = Environment.GetEnvironmentVariable(ProductConstants.CopilotModelEnvVar)
+                    ?? Environment.GetEnvironmentVariable(ProductConstants.CopilotFallbackModelEnvVar)
+                    ?? AppConfig.DefaultModel,
+            Provider = ProductConstants.CopilotProvider
+        };
 
         var configPath = GetConfigFilePath();
         if (File.Exists(configPath))
@@ -42,11 +47,19 @@ public class ConfigService : IConfigService
                 if (saved != null)
                 {
                     config.ApiKey ??= saved.ApiKey;
-                    if (!string.IsNullOrEmpty(saved.Model)) config.Model = saved.Model;
-                    if (!string.IsNullOrEmpty(saved.Provider)) config.Provider = saved.Provider;
-                    config.OAuthToken ??= saved.OAuthToken;
-                    config.MaxTokens = saved.MaxTokens;
-                    config.SystemPrompt = saved.SystemPrompt;
+                    if (!string.IsNullOrWhiteSpace(saved.OAuthToken)) config.OAuthToken = saved.OAuthToken;
+                    if (!string.IsNullOrWhiteSpace(saved.SystemPrompt)) config.SystemPrompt = saved.SystemPrompt;
+                    if (saved.MaxTokens > 0) config.MaxTokens = saved.MaxTokens;
+                    config.Verbose = saved.Verbose;
+                    config.Debug = saved.Debug;
+                    config.BypassPermissions = saved.BypassPermissions;
+                    config.DefaultPermissionMode = saved.DefaultPermissionMode;
+                    config.AdditionalDirectories = saved.AdditionalDirectories ?? [];
+
+                    if (!string.IsNullOrWhiteSpace(saved.Model) && !LooksLikeUnsupportedLegacyModel(saved.Model))
+                    {
+                        config.Model = saved.Model;
+                    }
                 }
             }
             catch (Exception ex)
@@ -61,6 +74,12 @@ public class ConfigService : IConfigService
 
     public void SaveConfig(AppConfig config)
     {
+        config.Provider = ProductConstants.CopilotProvider;
+        if (LooksLikeUnsupportedLegacyModel(config.Model))
+        {
+            config.Model = ProductConstants.DefaultModel;
+        }
+
         _config = config;
         var configPath = GetConfigFilePath();
         var dir = Path.GetDirectoryName(configPath)!;
@@ -70,14 +89,9 @@ public class ConfigService : IConfigService
         File.WriteAllText(configPath, json);
     }
 
-    public string GetApiKey()
-    {
-        var config = LoadConfig();
-        return config.ApiKey
-            ?? config.OAuthToken
-            ?? throw new InvalidOperationException(
-                $"No API key configured. Set the {ProductConstants.ApiKeyEnvVar} environment variable.");
-    }
+    private static bool LooksLikeUnsupportedLegacyModel(string? model)
+        => !string.IsNullOrWhiteSpace(model)
+           && UnsupportedLegacyModelPrefixes.Any(prefix => model.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
 
     private static string GetConfigFilePath()
     {

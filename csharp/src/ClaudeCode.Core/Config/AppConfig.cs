@@ -5,8 +5,8 @@ namespace ClaudeCode.Core.Config;
 public class AppConfig
 {
     // Defined here because ClaudeCode.Core cannot depend on ClaudeCode.Constants
-    public const string DefaultModel = "claude-opus-4-5";
-    public const string DefaultProvider = "anthropic";
+    public const string DefaultModel = "gpt-4o";
+    public const string DefaultProvider = "copilot";
 
     public string? ApiKey { get; set; }
     public string Model { get; set; } = DefaultModel;

@@ -1,4 +1,5 @@
 using ClaudeCode.Core.Tools;
+using ClaudeCode.Tools.ApplyPatch;
 using ClaudeCode.Tools.Bash;
 using ClaudeCode.Tools.FileEdit;
 using ClaudeCode.Tools.FileRead;
@@ -35,8 +36,9 @@ public static class ToolRegistryExtensions
     public static IServiceCollection AddClaudeTools(this IServiceCollection services)
     {
         services.AddSingleton<IToolRegistry, ToolRegistry>();
+        services.AddSingleton<ApplyPatchTool>();
         services.AddSingleton<BashTool>();
-      services.AddSingleton<ListDirectoryTool>();
+        services.AddSingleton<ListDirectoryTool>();
         services.AddSingleton<FileReadTool>();
         services.AddSingleton<FileWriteTool>();
         services.AddSingleton<FileEditTool>();
@@ -50,8 +52,9 @@ public static class ToolRegistryExtensions
     public static IServiceProvider PopulateToolRegistry(this IServiceProvider serviceProvider)
     {
         var registry = serviceProvider.GetRequiredService<IToolRegistry>();
+        registry.RegisterTool(serviceProvider.GetRequiredService<ApplyPatchTool>());
         registry.RegisterTool(serviceProvider.GetRequiredService<BashTool>());
-      registry.RegisterTool(serviceProvider.GetRequiredService<ListDirectoryTool>());
+        registry.RegisterTool(serviceProvider.GetRequiredService<ListDirectoryTool>());
         registry.RegisterTool(serviceProvider.GetRequiredService<FileReadTool>());
         registry.RegisterTool(serviceProvider.GetRequiredService<FileWriteTool>());
         registry.RegisterTool(serviceProvider.GetRequiredService<FileEditTool>());
