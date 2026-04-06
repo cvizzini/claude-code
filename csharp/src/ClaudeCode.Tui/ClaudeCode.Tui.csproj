@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Terminal.Gui" Version="1.19.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ClaudeCode.Commands\ClaudeCode.Commands.csproj" />
+    <ProjectReference Include="..\ClaudeCode.Constants\ClaudeCode.Constants.csproj" />
+    <ProjectReference Include="..\ClaudeCode.Core\ClaudeCode.Core.csproj" />
+    <ProjectReference Include="..\ClaudeCode.Services\ClaudeCode.Services.csproj" />
+    <ProjectReference Include="..\ClaudeCode.Tools\ClaudeCode.Tools.csproj" />
+  </ItemGroup>
+
+</Project>

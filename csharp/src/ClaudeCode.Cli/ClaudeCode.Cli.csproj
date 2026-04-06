@@ -6,6 +6,7 @@
     <ProjectReference Include="..\ClaudeCode.Tools\ClaudeCode.Tools.csproj" />
     <ProjectReference Include="..\ClaudeCode.Services\ClaudeCode.Services.csproj" />
     <ProjectReference Include="..\ClaudeCode.Commands\ClaudeCode.Commands.csproj" />
+    <ProjectReference Include="..\ClaudeCode.Tui\ClaudeCode.Tui.csproj" />
   </ItemGroup>
 
   <ItemGroup>

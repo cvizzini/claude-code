@@ -6,6 +6,7 @@ using ClaudeCode.Services.Config;
 using ClaudeCode.Services.CopilotClient;
 using ClaudeCode.Services.QueryEngine;
 using ClaudeCode.Tools;
+using ClaudeCode.Tui;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
@@ -19,6 +20,7 @@ var verboseOption = new Option<bool>(new[] { "--verbose", "-v" }, "Enable verbos
 var debugOption = new Option<bool>("--debug", "Enable debug output");
 var printOption = new Option<bool>(new[] { "-p", "--print" }, "Non-interactive mode: print response and exit");
 var systemPromptOption = new Option<string?>("--system-prompt", "System prompt to use");
+var noTuiOption = new Option<bool>("--no-tui", "Disable the rich terminal UI and use plain console output");
 var promptArgument = new Argument<string?>("prompt", () => null, "Initial prompt (optional)");
 
 var rootCommand = new RootCommand("Claude Code - GitHub Copilot coding assistant");
@@ -30,6 +32,7 @@ rootCommand.AddGlobalOption(debugOption);
 rootCommand.AddArgument(promptArgument);
 rootCommand.AddOption(printOption);
 rootCommand.AddOption(systemPromptOption);
+rootCommand.AddOption(noTuiOption);
 
 rootCommand.SetHandler(async (InvocationContext ctx) =>
 {
@@ -40,6 +43,7 @@ rootCommand.SetHandler(async (InvocationContext ctx) =>
     var debug = ctx.ParseResult.GetValueForOption(debugOption);
     var prompt = ctx.ParseResult.GetValueForArgument(promptArgument);
     var print = ctx.ParseResult.GetValueForOption(printOption);
+    var noTui = ctx.ParseResult.GetValueForOption(noTuiOption);
 
     var services = await BuildServicesAsync(apiKey, provider, model, verbose, debug, ctx.GetCancellationToken());
     var chat = services.GetRequiredService<ChatCommand>();
@@ -52,9 +56,14 @@ rootCommand.SetHandler(async (InvocationContext ctx) =>
         else
             AnsiConsole.MarkupLine("[yellow]No prompt provided.[/]");
     }
-    else
+    else if (noTui)
     {
         await chat.RunInteractiveAsync(ctx.GetCancellationToken());
+    }
+    else
+    {
+        var tui = services.GetRequiredService<TuiApplication>();
+        await tui.RunAsync(ctx.GetCancellationToken());
     }
 });
 
@@ -103,6 +112,7 @@ static async Task<IServiceProvider> BuildServicesAsync(string? apiKey, string? p
     services.AddSingleton<IQueryEngine, QueryEngine>();
     services.AddClaudeTools();
     services.AddTransient<ChatCommand>();
+    services.AddTransient<TuiApplication>();
 
     var serviceProvider = services.BuildServiceProvider();
     ApplyRuntimeConfig(serviceProvider, resolvedProvider, resolvedModel, verbose, debug);
