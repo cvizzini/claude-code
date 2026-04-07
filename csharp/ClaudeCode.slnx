@@ -7,5 +7,6 @@
     <Project Path="src/ClaudeCode.Core/ClaudeCode.Core.csproj" />
     <Project Path="src/ClaudeCode.Services/ClaudeCode.Services.csproj" />
     <Project Path="src/ClaudeCode.Tools/ClaudeCode.Tools.csproj" />
+    <Project Path="src/ClaudeCode.Tui/ClaudeCode.Tui.csproj" />
   </Folder>
 </Solution>
